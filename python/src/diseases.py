@@ -14,15 +14,6 @@ else:
     from urllib import quote_plus
 
 # Embed your own keys for simplicity
-CONSUMER_KEY = "your key goes here"
-CONSUMER_SECRET = "your key goes here"
-ACCESS_TOKEN = "your key goes here"
-ACCESS_TOKEN_SECRET = "your key goes here"
-# Remove these lines; we just do this for our own simplicity
-with open('../src/secrets.txt', 'r') as secrets:
-    CONSUMER_KEY, CONSUMER_SECRET, ACCESS_TOKEN, ACCESS_TOKEN_SECRET = \
-        [l.strip() for l in secrets.readlines()]
-
 
 # Auxilary
 
@@ -231,22 +222,28 @@ class DiseasesException(Exception):
 # Domain Objects
 
 
-class Diseases(object):
+class DataPoint(object):
     """
-    A Diseases contains
+    A DataPoint contains a week, a state, a disease, the year, and the number of
+    cases
     """
 
-    def __init__(self):
+    def __init__(self,year=None, week=None, state=None, disease=None,
+                 cases=None):
 
         """
-        Creates a new diseases
+        Creates a new data point
 
-        :returns: Diseases
+        :returns: DataPoint
         """
-        raise NotImplementedError("Function Not Finished")
+        self.year = year
+        self.week = week
+        self.state = state
+        self.disease = disease
+        self.cases = cases
+
 
     def __unicode__(self):
-        raise NotImplementedError("Function Not Finished")
         string = """ <Diseases Field: Value> """
         return string.format()
 
@@ -267,7 +264,11 @@ class Diseases(object):
         return string
 
     def _to_dict(self):
-        raise NotImplementedError("Function Not Finished")
+        return dict(year=self.year,
+                    week=self.week,
+                    state=self.state,
+                    disease=self.disease,
+                    cases=self.cases)
 
     @staticmethod
     def _from_json(json_data):
@@ -278,11 +279,19 @@ class Diseases(object):
         :type json_data: dict
         :returns: Diseases
         """
-        raise NotImplementedError("Function Not Finished")
         if json_data is None:
-            return Diseases()
+            return DataPoint()
         try:
-            diseases = Diseases(NEED_PARAMS)
+            json_items = json_data['_items']
+            json_dict = json_items[0]
+            year = json_dict['YEAR']
+            week = json_dict['WEEK']
+            state = json_dict['STATE']
+            disease = json_dict['DISEASE']
+            cases = json_dict['CASES']
+
+            diseases = DataPoint(year=year, week=week, state=state,
+                                 disease=disease, cases=cases)
             return diseases
         except KeyError:
             raise DiseasesException("The given information was incomplete.")
@@ -300,7 +309,7 @@ def _fetch_diseases_info(params):
     """
     from collections import OrderedDict
 
-    baseurl = 'http://think.cs.vt.edu:5000/diseasess'
+    baseurl = 'http://think.cs.vt.edu:5000/diseases'
     # An ordered dictionary is necessary since an ordinary dictionary has no ordering which causes
     # problems when trying to retrieve an item from the cache
     ordered_dict = OrderedDict(
@@ -329,6 +338,8 @@ def _fetch_diseases_info(params):
         if _CONNECTED and _EDITABLE:
             _add_to_cache(query, result)
         json_res = json.loads(result)
+        if not json_res['_items']:
+            raise DiseasesException("There were no results")
     except ValueError:
         raise DiseasesException("Internal Error")
 
@@ -351,7 +362,7 @@ def get_diseases_information(query):
     diseasess = []
 
     for json_dict in json_list:
-        diseases = Diseases._from_json(json_res)
+        diseases = DataPoint._from_json(json_res)
         diseasess.append(diseases._to_dict())
 
     return diseasess
